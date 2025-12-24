@@ -1,0 +1,9 @@
+[submodule "sepasangwp"]
+	path = sepasangwp
+	url = https://github.com/fauziyaharn/sepasangwp.git
+[submodule "transformers"]
+	path = transformers
+	url = https://github.com/fauziyaharn/transformers.git
+[submodule "transformers_swp"]
+	path = transformers_swp
+	url = https://github.com/fauziyaharn/transformers_swp.git
