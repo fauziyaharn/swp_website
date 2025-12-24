@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual envs
+venv/
+env/
+.venv/
+
+# Byte-compiled / C extensions
+*.egg-info/
+dist/
+build/
+
+# Logs and bench artifacts
+*.log
+bench_*.json
+
+# Models and large artifacts (do NOT commit models unless using Git LFS)
+/transformers_swp/models/
+/ai-vercel/transformers_swp/models/
+
+# Secrets / env
+*.env
+sepasangwp/.env
+ai-vercel/.env
+
+# Node
+node_modules/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

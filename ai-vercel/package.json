@@ -1,0 +1,7 @@
+{
+  "name": "ai-vercel",
+  "version": "0.1.0",
+  "scripts": {
+    "vercel-build": "python download_model.py"
+  }
+}
