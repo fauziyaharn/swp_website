@@ -3,3 +3,5 @@ flask==2.3.0
 flask-cors==3.0.10
 
 # Keep requirements small for Vercel serverless; heavy ML libs removed for now
+scikit-learn==1.8.0
+joblib==1.5.3
