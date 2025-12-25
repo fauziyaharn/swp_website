@@ -1,0 +1,62 @@
+{
+  "accuracy": 0.9995,
+  "report": {
+    "cari_catering": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 294.0
+    },
+    "cari_dekor": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 287.0
+    },
+    "cari_rekomendasi_paket": {
+      "precision": 0.9966216216216216,
+      "recall": 1.0,
+      "f1-score": 0.9983079526226735,
+      "support": 295.0
+    },
+    "cari_vendor": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 281.0
+    },
+    "cari_venue": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 286.0
+    },
+    "estimasi_budget": {
+      "precision": 1.0,
+      "recall": 0.9963503649635036,
+      "f1-score": 0.9981718464351006,
+      "support": 274.0
+    },
+    "tanya_kemungkinan": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 283.0
+    },
+    "accuracy": 0.9995,
+    "macro avg": {
+      "precision": 0.9995173745173744,
+      "recall": 0.9994786235662148,
+      "f1-score": 0.9994971141511106,
+      "support": 2000.0
+    },
+    "weighted avg": {
+      "precision": 0.9995016891891891,
+      "recall": 0.9995,
+      "f1-score": 0.999499965973453,
+      "support": 2000.0
+    }
+  },
+  "n_train": 8000,
+  "n_test": 2000
+}
