@@ -7,6 +7,7 @@ import threading
 import urllib.request
 import shutil
 import json
+import random
 
 app = Flask(__name__)
 CORS(app)
@@ -87,14 +88,25 @@ def process_endpoint():
                 else:
                     locations = [lokasi_slot]
                 tema = slots.get('tema') or 'Classic'
-                try:
-                    bmin = int(slots.get('budget_min')) if slots.get('budget_min') else 5000000
-                except Exception:
-                    bmin = 5000000
-                try:
-                    bmax = int(slots.get('budget_max')) if slots.get('budget_max') else 20000000
-                except Exception:
-                    bmax = 20000000
+                # Interpret budget slots more robustly:
+                # - treat missing or zero as unspecified
+                # - if only max is provided, derive a reasonable min (50% of max)
+                def _safe_int(v):
+                    try:
+                        if v is None:
+                            return None
+                        iv = int(v)
+                        return iv if iv > 0 else None
+                    except Exception:
+                        return None
+
+                bmin_slot = _safe_int(slots.get('budget_min'))
+                bmax_slot = _safe_int(slots.get('budget_max'))
+                if bmin_slot is None and bmax_slot is not None:
+                    bmin = max(1_000_000, int(bmax_slot * 0.5))
+                else:
+                    bmin = bmin_slot if bmin_slot is not None else 5_000_000
+                bmax = bmax_slot if bmax_slot is not None else 20_000_000
                 # preserve None if user didn't specify jumlah_tamu
                 tamu = slots.get('jumlah_tamu') if slots.get('jumlah_tamu') is not None else None
                 # try to load vendor lists shipped with the backend and build
@@ -107,6 +119,36 @@ def process_endpoint():
                 doc_list = vendors_data.get('documentation') or []
                 entert_list = vendors_data.get('entertainment') or []
                 catering_list = vendors_data.get('catering') or []
+
+                # normalize vendor entries to dicts {'name', 'url', 'image', 'contact'} for consistent handling
+                def _normalize(lst):
+                    out = []
+                    for item in lst:
+                        if isinstance(item, dict):
+                            out.append({
+                                'name': item.get('name'),
+                                'url': item.get('url'),
+                                'image': item.get('image'),
+                                'contact': item.get('contact'),
+                            })
+                        else:
+                            out.append({'name': item, 'url': None, 'image': None, 'contact': None})
+                    return out
+
+                wo_list = _normalize(wo_list)
+                mua_list = _normalize(mua_list)
+                decor_list = _normalize(decor_list)
+                doc_list = _normalize(doc_list)
+                entert_list = _normalize(entert_list)
+                catering_list = _normalize(catering_list)
+
+                # shuffle lists to increase diversity of generated combinations
+                random.shuffle(wo_list)
+                random.shuffle(mua_list)
+                random.shuffle(decor_list)
+                random.shuffle(doc_list)
+                random.shuffle(entert_list)
+                random.shuffle(catering_list)
 
                 # fallback defaults if lists are empty
                 if not wo_list:
@@ -122,48 +164,68 @@ def process_endpoint():
                 if not catering_list:
                     catering_list = ['Sedap Catering', 'Asparagus Catering', 'Kartika Catering']
 
-                # create recommendations: produce recommendations per-location dynamically
-                per_loc = max(1, len(wo_list), len(mua_list), len(decor_list), len(doc_list), len(entert_list), len(catering_list))
-                for loc_idx, loc in enumerate(locations):
-                    for sub_idx in range(per_loc):
-                        # helper to normalize vendor entry which may be a string or dict
-                        def _vendor_fields(item):
-                            if isinstance(item, dict):
-                                return item.get('name'), item.get('url'), item.get('image'), item.get('contact')
-                            return (item, None, None, None)
-                        idx = loc_idx * per_loc + sub_idx
-                        wo_item = wo_list[idx % len(wo_list)]
-                        mua_item = mua_list[idx % len(mua_list)]
-                        decor_item = decor_list[idx % len(decor_list)]
-                        doc_item = doc_list[idx % len(doc_list)]
-                        entert_item = entert_list[idx % len(entert_list)]
-                        catering_item = catering_list[idx % len(catering_list)]
+                # create recommendations: sample limited number per location, combine randomly and deduplicate
+                desired_per_location = min(8, max(1, len(wo_list), len(mua_list), len(decor_list), len(doc_list), len(entert_list), len(catering_list)))
+                seen = set()
+                for loc in locations:
+                    attempts = 0
+                    created = 0
+                    # try random combinations until we have enough or hit attempt limit
+                    while created < desired_per_location and attempts < desired_per_location * 6:
+                        attempts += 1
+                        wo_item = random.choice(wo_list)
+                        mua_item = random.choice(mua_list) if mua_list else {'name': None, 'url': None, 'image': None, 'contact': None}
+                        decor_item = random.choice(decor_list) if decor_list else {'name': None, 'url': None, 'image': None, 'contact': None}
+                        doc_item = random.choice(doc_list) if doc_list else {'name': None, 'url': None, 'image': None, 'contact': None}
+                        entert_item = random.choice(entert_list) if entert_list else {'name': None, 'url': None, 'image': None, 'contact': None}
+                        catering_item = random.choice(catering_list) if catering_list else {'name': None, 'url': None, 'image': None, 'contact': None}
 
-                        wo_name, wo_url, wo_image, wo_contact = _vendor_fields(wo_item)
-                        mua_name, mua_url, mua_image, mua_contact = _vendor_fields(mua_item)
-                        decor_name, decor_url, decor_image, decor_contact = _vendor_fields(decor_item)
-                        doc_name, doc_url, doc_image, doc_contact = _vendor_fields(doc_item)
-                        entert_name, entert_url, entert_image, entert_contact = _vendor_fields(entert_item)
-                        catering_name, catering_url, catering_image, catering_contact = _vendor_fields(catering_item)
+                        key = (wo_item.get('name'), mua_item.get('name'), decor_item.get('name'), catering_item.get('name'))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+
+                        # sample per-vendor budget variation around requested budget
+                        def _sample_budget(bmin_val, bmax_val):
+                            try:
+                                if bmin_val is None and bmax_val is None:
+                                    return None, None
+                                # fallbacks
+                                if bmin_val is None:
+                                    bmin_val = int(max(1_000_000, int(bmax_val * 0.5)))
+                                if bmax_val is None:
+                                    bmax_val = int(max(bmin_val, 20_000_000))
+                                # if equal, create a small spread
+                                if bmin_val == bmax_val:
+                                    low = int(bmin_val * 0.85)
+                                    high = int(bmax_val * 1.15)
+                                else:
+                                    low = max(1, int(bmin_val * random.uniform(0.8, 1.05)))
+                                    high = int(bmax_val * random.uniform(0.95, 1.25))
+                                if low > high:
+                                    low, high = high, low
+                                return int(low), int(high)
+                        lbmin, lbmax = _sample_budget(bmin, bmax)
 
                         recommendations.append({
-                            'name': f"{wo_name}",
-                            'wo': {'name': wo_name, 'url': wo_url, 'image': wo_image, 'contact': wo_contact},
-                            'mua': {'name': mua_name, 'url': mua_url, 'image': mua_image, 'contact': mua_contact},
-                            'decoration': {'name': decor_name, 'url': decor_url, 'image': decor_image, 'contact': decor_contact},
-                            'documentation': {'name': doc_name, 'url': doc_url, 'image': doc_image, 'contact': doc_contact},
-                            'entertainment': {'name': entert_name, 'url': entert_url, 'image': entert_image, 'contact': entert_contact},
-                            'catering': {'name': catering_name, 'url': catering_url, 'image': catering_image, 'contact': catering_contact},
+                            'name': wo_item.get('name'),
+                            'wo': {'name': wo_item.get('name'), 'url': wo_item.get('url'), 'image': wo_item.get('image'), 'contact': wo_item.get('contact')},
+                            'mua': {'name': mua_item.get('name'), 'url': mua_item.get('url'), 'image': mua_item.get('image'), 'contact': mua_item.get('contact')},
+                            'decoration': {'name': decor_item.get('name'), 'url': decor_item.get('url'), 'image': decor_item.get('image'), 'contact': decor_item.get('contact')},
+                            'documentation': {'name': doc_item.get('name'), 'url': doc_item.get('url'), 'image': doc_item.get('image'), 'contact': doc_item.get('contact')},
+                            'entertainment': {'name': entert_item.get('name'), 'url': entert_item.get('url'), 'image': entert_item.get('image'), 'contact': entert_item.get('contact')},
+                            'catering': {'name': catering_item.get('name'), 'url': catering_item.get('url'), 'image': catering_item.get('image'), 'contact': catering_item.get('contact')},
                             'tema': tema,
                             'lokasi': loc,
-                            'budget_min': int(bmin),
-                            'budget_max': int(bmax),
+                            'budget_min': int(lbmin) if lbmin is not None else None,
+                            'budget_max': int(lbmax) if lbmax is not None else None,
                             'jumlah_tamu': tamu,
                             'tipe_acara': 'Resepsi',
-                            'venue': f"{wo_name} Venue, {loc}",
+                            'venue': f"{wo_item.get('name')} Venue, {loc}",
                             'waktu': slots.get('waktu') or None,
                             'demo': False,
                         })
+                        created += 1
         except Exception:
             recommendations = []
         # ensure ai_result reflects any intent/slot overrides so frontend sees them
@@ -198,14 +260,22 @@ def process_endpoint():
                     else:
                         locations = ['Bandung']
                     tema_local = slots.get('tema') if slots and slots.get('tema') else 'Classic'
-                    try:
-                        bmin_local = int(slots.get('budget_min')) if slots and slots.get('budget_min') else 5000000
-                    except Exception:
-                        bmin_local = 5000000
-                    try:
-                        bmax_local = int(slots.get('budget_max')) if slots and slots.get('budget_max') else 20000000
-                    except Exception:
-                        bmax_local = 20000000
+                    def _safe_int_local(v):
+                        try:
+                            if v is None:
+                                return None
+                            iv = int(v)
+                            return iv if iv > 0 else None
+                        except Exception:
+                            return None
+
+                    bmin_local_slot = _safe_int_local(slots.get('budget_min') if slots else None)
+                    bmax_local_slot = _safe_int_local(slots.get('budget_max') if slots else None)
+                    if bmin_local_slot is None and bmax_local_slot is not None:
+                        bmin_local = max(1_000_000, int(bmax_local_slot * 0.5))
+                    else:
+                        bmin_local = bmin_local_slot if bmin_local_slot is not None else 5_000_000
+                    bmax_local = bmax_local_slot if bmax_local_slot is not None else 20_000_000
                     tamu_local = slots.get('jumlah_tamu') if slots and slots.get('jumlah_tamu') is not None else None
 
                     vendors_data = _load_json_file('vendors.json') or {}

@@ -14,6 +14,8 @@ _vocab: Dict[str, int] = {}
 _doc_vectors: List[List[int]] = []
 _clusters: Dict[int, List[int]] = {}
 _centroids: List[List[float]] = []
+_sk_model = None
+_sk_model_loaded = False
 
 def ensure_initialized(sync=True):
     global _initialized
@@ -120,6 +122,35 @@ def ensure_initialized(sync=True):
                 # if clustering fails, leave clusters empty
                 _clusters.clear()
                 _centroids.clear()
+        # attempt to load a saved sklearn joblib model (TF-IDF + LogisticRegression) from common locations
+        try:
+            # import joblib lazily so a missing dependency doesn't crash module import
+            try:
+                import joblib
+            except Exception:
+                joblib = None
+            global _sk_model, _sk_model_loaded
+            candidate_model_paths = [
+                os.path.join(os.path.dirname(__file__), '..', 'models', 'intent_tfidf_logreg.joblib'),
+                os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'intent_tfidf_logreg.joblib'),
+                os.path.join(os.getcwd(), 'models', 'intent_tfidf_logreg.joblib'),
+            ]
+            if joblib is not None:
+                for mp in candidate_model_paths:
+                    if mp and os.path.exists(mp):
+                        try:
+                            _sk_model = joblib.load(mp)
+                            _sk_model_loaded = True
+                            break
+                        except Exception:
+                            _sk_model = None
+                            _sk_model_loaded = False
+            else:
+                _sk_model = None
+                _sk_model_loaded = False
+        except Exception:
+            _sk_model = None
+            _sk_model_loaded = False
     except Exception:
         pass
     _initialized = True
@@ -153,19 +184,48 @@ def extract_slots_by_rule(text: str):
             slots['lokasi'] = uniq[0]
         else:
             slots['lokasi'] = uniq
-    # budget
-    m = re.findall(r"(\d+)\s*juta", lower)
-    if m:
-        amounts = [int(x) * 1_000_000 for x in m]
-        slots["budget_min"] = min(amounts)
-        slots["budget_max"] = max(amounts)
-    # jumlah tamu
-    m2 = re.search(r"(\d+)\s*(orang|tamu|pax)", lower)
-    if m2:
-        try:
-            slots["jumlah_tamu"] = int(m2.group(1))
-        except Exception:
-            pass
+    # budget — support variants like '500juta', '500 jt', '50 juta', '30-40 juta'
+    try:
+        budget_matches = re.findall(r"(\d+(?:[\.,]\d+)?)\s*(?:juta|jt)\b", lower)
+        if budget_matches:
+            amounts = []
+            for x in budget_matches:
+                x2 = x.replace(',', '.').strip()
+                try:
+                    v = float(x2)
+                    amounts.append(int(v * 1_000_000))
+                except Exception:
+                    try:
+                        amounts.append(int(int(x2) * 1_000_000))
+                    except Exception:
+                        pass
+            if amounts:
+                slots["budget_min"] = min(amounts)
+                slots["budget_max"] = max(amounts)
+        else:
+            # also support thousands/ribu forms like '30rb' or '30 ribu'
+            small_matches = re.findall(r"(\d+)\s*(?:ribu|rb)\b", lower)
+            if small_matches:
+                amounts = [int(x) * 1_000 for x in small_matches]
+                slots["budget_min"] = min(amounts)
+                slots["budget_max"] = max(amounts)
+    except Exception:
+        pass
+
+    # jumlah tamu — only capture when units like 'orang', 'tamu', or 'pax' are present
+    try:
+        m2 = re.search(r"(?:untuk|buat|kapasitas)?\s*(\d{1,5})\s*(orang|tamu|pax)\b", lower)
+        if m2:
+            n = m2.group(1).replace('.', '').replace(',', '')
+            try:
+                val = int(n)
+                # sanity check: treat plausible guest counts only
+                if 0 < val <= 5000:
+                    slots["jumlah_tamu"] = val
+            except Exception:
+                pass
+    except Exception:
+        pass
     return slots
 
 def predict(text: str):
@@ -186,6 +246,58 @@ def predict(text: str):
             for t in tokens:
                 if t in _vocab:
                     qvec[_vocab[t]] += 1
+        # If a trained sklearn intent model is available, use it first
+        try:
+            global _sk_model, _sk_model_loaded
+            if _sk_model_loaded and _sk_model is not None:
+                try:
+                    pred_label = _sk_model.predict([text])[0]
+                    probs = {}
+                    try:
+                        proba = _sk_model.predict_proba([text])[0]
+                        classes = list(_sk_model.classes_)
+                        probs = {str(c): float(p) for c, p in zip(classes, proba)}
+                    except Exception:
+                        probs = {str(pred_label): 1.0}
+                    # extract user slots and fill missing from best dataset match (if available)
+                    slots = extract_slots_by_rule(text) or {}
+                    # quick best-match search to fill missing slots (non-destructive)
+                    best2 = None
+                    best_score2 = 0.0
+                    for idx in range(len(_dataset_rows)):
+                        r = _dataset_rows[idx]
+                        rtoks = set(r.get('_tokens', []))
+                        if not rtoks:
+                            continue
+                        inter = tokens.intersection(rtoks)
+                        union = tokens.union(rtoks)
+                        score = len(inter) / (len(union) or 1)
+                        if score > best_score2:
+                            best_score2 = score
+                            best2 = r
+                    if best2 and best_score2 >= 0.25:
+                        for k in ('tema', 'lokasi', 'budget_min', 'budget_max', 'jumlah_tamu', 'tipe_acara', 'venue', 'waktu'):
+                            if (slots.get(k) is None or slots.get(k) == []) and best2.get(k):
+                                try:
+                                    if k in ('budget_min', 'budget_max', 'jumlah_tamu') and best2.get(k):
+                                        slots[k] = int(best2.get(k))
+                                    else:
+                                        slots[k] = best2.get(k)
+                                except Exception:
+                                    slots[k] = best2.get(k)
+                    return {
+                        'text': text,
+                        'intent_pred': str(pred_label),
+                        'probs': probs,
+                        'slots': slots,
+                        'overridden': False,
+                        'override_reason': 'model_pred',
+                    }
+                except Exception:
+                    # on model failure, fall back to dataset matching below
+                    pass
+        except Exception:
+            pass
         best = None
         best_score = 0.0
         # choose which rows to compare: nearest cluster if available
