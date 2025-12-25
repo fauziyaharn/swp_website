@@ -126,44 +126,44 @@ def process_endpoint():
                 per_loc = 2
                 for loc_idx, loc in enumerate(locations):
                     for sub_idx in range(per_loc):
-                    # helper to normalize vendor entry which may be a string or dict
-                    def _vendor_fields(item):
-                        if isinstance(item, dict):
-                            return item.get('name'), item.get('url'), item.get('image'), item.get('contact')
-                        return (item, None, None, None)
-                    idx = loc_idx * per_loc + sub_idx
-                    wo_item = wo_list[idx % len(wo_list)]
-                    mua_item = mua_list[idx % len(mua_list)]
-                    decor_item = decor_list[idx % len(decor_list)]
-                    doc_item = doc_list[idx % len(doc_list)]
-                    entert_item = entert_list[idx % len(entert_list)]
-                    catering_item = catering_list[idx % len(catering_list)]
+                        # helper to normalize vendor entry which may be a string or dict
+                        def _vendor_fields(item):
+                            if isinstance(item, dict):
+                                return item.get('name'), item.get('url'), item.get('image'), item.get('contact')
+                            return (item, None, None, None)
+                        idx = loc_idx * per_loc + sub_idx
+                        wo_item = wo_list[idx % len(wo_list)]
+                        mua_item = mua_list[idx % len(mua_list)]
+                        decor_item = decor_list[idx % len(decor_list)]
+                        doc_item = doc_list[idx % len(doc_list)]
+                        entert_item = entert_list[idx % len(entert_list)]
+                        catering_item = catering_list[idx % len(catering_list)]
 
-                    wo_name, wo_url, wo_image, wo_contact = _vendor_fields(wo_item)
-                    mua_name, mua_url, mua_image, mua_contact = _vendor_fields(mua_item)
-                    decor_name, decor_url, decor_image, decor_contact = _vendor_fields(decor_item)
-                    doc_name, doc_url, doc_image, doc_contact = _vendor_fields(doc_item)
-                    entert_name, entert_url, entert_image, entert_contact = _vendor_fields(entert_item)
-                    catering_name, catering_url, catering_image, catering_contact = _vendor_fields(catering_item)
+                        wo_name, wo_url, wo_image, wo_contact = _vendor_fields(wo_item)
+                        mua_name, mua_url, mua_image, mua_contact = _vendor_fields(mua_item)
+                        decor_name, decor_url, decor_image, decor_contact = _vendor_fields(decor_item)
+                        doc_name, doc_url, doc_image, doc_contact = _vendor_fields(doc_item)
+                        entert_name, entert_url, entert_image, entert_contact = _vendor_fields(entert_item)
+                        catering_name, catering_url, catering_image, catering_contact = _vendor_fields(catering_item)
 
-                    recommendations.append({
-                        'name': f"{wo_name}",
-                        'wo': {'name': wo_name, 'url': wo_url, 'image': wo_image, 'contact': wo_contact},
-                        'mua': {'name': mua_name, 'url': mua_url, 'image': mua_image, 'contact': mua_contact},
-                        'decoration': {'name': decor_name, 'url': decor_url, 'image': decor_image, 'contact': decor_contact},
-                        'documentation': {'name': doc_name, 'url': doc_url, 'image': doc_image, 'contact': doc_contact},
-                        'entertainment': {'name': entert_name, 'url': entert_url, 'image': entert_image, 'contact': entert_contact},
-                        'catering': {'name': catering_name, 'url': catering_url, 'image': catering_image, 'contact': catering_contact},
-                        'tema': tema,
-                        'lokasi': loc,
-                        'budget_min': int(bmin),
-                        'budget_max': int(bmax),
-                        'jumlah_tamu': tamu,
-                        'tipe_acara': 'Resepsi',
-                        'venue': f"{wo_name} Venue, {loc}",
-                        'waktu': slots.get('waktu') or None,
-                        'demo': False,
-                    })
+                        recommendations.append({
+                            'name': f"{wo_name}",
+                            'wo': {'name': wo_name, 'url': wo_url, 'image': wo_image, 'contact': wo_contact},
+                            'mua': {'name': mua_name, 'url': mua_url, 'image': mua_image, 'contact': mua_contact},
+                            'decoration': {'name': decor_name, 'url': decor_url, 'image': decor_image, 'contact': decor_contact},
+                            'documentation': {'name': doc_name, 'url': doc_url, 'image': doc_image, 'contact': doc_contact},
+                            'entertainment': {'name': entert_name, 'url': entert_url, 'image': entert_image, 'contact': entert_contact},
+                            'catering': {'name': catering_name, 'url': catering_url, 'image': catering_image, 'contact': catering_contact},
+                            'tema': tema,
+                            'lokasi': loc,
+                            'budget_min': int(bmin),
+                            'budget_max': int(bmax),
+                            'jumlah_tamu': tamu,
+                            'tipe_acara': 'Resepsi',
+                            'venue': f"{wo_name} Venue, {loc}",
+                            'waktu': slots.get('waktu') or None,
+                            'demo': False,
+                        })
         except Exception:
             recommendations = []
         # ensure ai_result reflects any intent/slot overrides so frontend sees them
