@@ -122,8 +122,8 @@ def process_endpoint():
                 if not catering_list:
                     catering_list = ['Sedap Catering', 'Asparagus Catering', 'Kartika Catering']
 
-                # create recommendations: for multiple locations, produce 2 per location
-                per_loc = 2
+                # create recommendations: produce recommendations per-location dynamically
+                per_loc = max(1, len(wo_list), len(mua_list), len(decor_list), len(doc_list), len(entert_list), len(catering_list))
                 for loc_idx, loc in enumerate(locations):
                     for sub_idx in range(per_loc):
                         # helper to normalize vendor entry which may be a string or dict
@@ -227,7 +227,7 @@ def process_endpoint():
                         entert_list = ['Bio Music Pro', 'Amazingdays', 'DMT Music']
                     if not catering_list:
                         catering_list = ['Sedap Catering', 'Asparagus Catering', 'Kartika Catering']
-                    per_loc = 2
+                    per_loc = max(1, len(wo_list), len(mua_list), len(decor_list), len(doc_list), len(entert_list), len(catering_list))
                     for loc_idx, loc in enumerate(locations):
                         for sub_idx in range(per_loc):
                             def _vendor_fields(item):
