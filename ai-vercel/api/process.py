@@ -12,6 +12,17 @@ import random
 app = Flask(__name__)
 CORS(app)
 
+
+@app.after_request
+def _set_cors_headers(response):
+    try:
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    except Exception:
+        pass
+    return response
+
 ts_app = None
 _model_lock = threading.Lock()
 _model_downloading = False
@@ -64,9 +75,12 @@ def process_endpoint():
         import traceback
         tb = traceback.format_exc()
         return jsonify({'error': 'ai_import_failed', 'message': str(e), 'trace': tb}), 500
-    initialized = ensure_initialized(sync=True)
-    if not initialized:
-        return jsonify({'error': 'initializing', 'message': 'AI is still initializing, try again shortly'}), 503
+    # Start background initialization but do not block the request on Vercel
+    try:
+        ensure_initialized(sync=False)
+    except Exception:
+        # ignore init failures here; ai_predict will still run with rule-based fallbacks
+        pass
 
     start = time.time()
     try:
@@ -210,6 +224,8 @@ def process_endpoint():
                                 if low > high:
                                     low, high = high, low
                                 return int(low), int(high)
+                            except Exception:
+                                return bmin_val, bmax_val
                         lbmin, lbmax = _sample_budget(bmin, bmax)
 
                         recommendations.append({

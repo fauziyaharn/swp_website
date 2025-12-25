@@ -9,6 +9,7 @@ INTENT_LIST = [
 ]
 
 _initialized = False
+_init_started = False
 _dataset_rows: List[Dict] = []
 _vocab: Dict[str, int] = {}
 _doc_vectors: List[List[int]] = []
@@ -16,13 +17,10 @@ _clusters: Dict[int, List[int]] = {}
 _centroids: List[List[float]] = []
 _sk_model = None
 _sk_model_loaded = False
+_init_thread = None
 
-def ensure_initialized(sync=True):
-    global _initialized
-    if _initialized:
-        return True
-    # lightweight init: load intent labels if present
-    # try to load dataset_pertanyaan_wedding.csv to improve matching
+def _do_init():
+    global _initialized, _dataset_rows, _vocab, _doc_vectors, _clusters, _centroids, _sk_model, _sk_model_loaded
     try:
         candidates = [
             os.path.join(os.path.dirname(__file__), 'data', 'dataset_pertanyaan_wedding.csv'),
@@ -37,26 +35,23 @@ def ensure_initialized(sync=True):
                         text = (r.get('text') or '').strip()
                         if not text:
                             continue
-                        norm = re.sub(r'[^0-9a-zA-Z\s]', ' ', text.lower()).strip()
+                        norm = re.sub(r'[^0-9a-zA-Z\\s]', ' ', text.lower()).strip()
                         tokens = [t for t in norm.split() if t]
                         r['_norm'] = norm
                         r['_tokens'] = tokens
                         _dataset_rows.append(r)
                 break
-        # build simple vocabulary and document count vectors
         if _dataset_rows:
             vocab = {}
             vectors = []
-            for i, r in enumerate(_dataset_rows):
+            for r in _dataset_rows:
                 counts = {}
                 for t in r.get('_tokens', []):
                     counts[t] = counts.get(t, 0) + 1
                 for t in counts:
                     if t not in vocab:
                         vocab[t] = len(vocab)
-                # create vector later after vocab complete
                 vectors.append(counts)
-            # finalize vectors with fixed vocab size
             V = len(vocab)
             docvecs = []
             for counts in vectors:
@@ -66,7 +61,6 @@ def ensure_initialized(sync=True):
                 docvecs.append(vec)
             _vocab.update(vocab)
             _doc_vectors.extend(docvecs)
-            # train lightweight k-means to cluster similar questions
             try:
                 def _train_kmeans(docvecs, k=8, iters=40, seed=42):
                     import random
@@ -75,16 +69,13 @@ def ensure_initialized(sync=True):
                     if n == 0:
                         return {}, []
                     k = min(k, n)
-                    # initialize centroids by random sampling
                     centroids = [list(map(float, docvecs[i])) for i in random.sample(range(n), k)]
                     for _ in range(iters):
                         clusters = {i: [] for i in range(len(centroids))}
-                        # assign
                         for idx, v in enumerate(docvecs):
                             best_i = 0
                             best_d = None
                             for ci, c in enumerate(centroids):
-                                # squared euclidean
                                 d = 0.0
                                 for a, b in zip(v, c):
                                     diff = a - b
@@ -93,8 +84,6 @@ def ensure_initialized(sync=True):
                                     best_d = d
                                     best_i = ci
                             clusters[best_i].append(idx)
-                        # recompute centroids
-                        changed = False
                         for ci in range(len(centroids)):
                             members = clusters[ci]
                             if not members:
@@ -108,28 +97,21 @@ def ensure_initialized(sync=True):
                             for j in range(len(newc)):
                                 newc[j] *= inv
                             centroids[ci] = newc
-                        # no explicit convergence check to keep simple
                     return clusters, centroids
                 clusters, centroids = _train_kmeans(_doc_vectors, k=min(12, max(2, int(len(_doc_vectors)**0.5))))
-                # map cluster member indices from local docvec indices to dataset row indices
-                # local docvec index i corresponds to dataset row index i (we appended in same order)
                 _clusters.clear()
                 for ci, members in clusters.items():
-                    _clusters[ci] = members[:]  # indices in _dataset_rows
+                    _clusters[ci] = members[:]
                 _centroids.clear()
                 _centroids.extend(centroids)
             except Exception:
-                # if clustering fails, leave clusters empty
                 _clusters.clear()
                 _centroids.clear()
-        # attempt to load a saved sklearn joblib model (TF-IDF + LogisticRegression) from common locations
         try:
-            # import joblib lazily so a missing dependency doesn't crash module import
             try:
                 import joblib
             except Exception:
                 joblib = None
-            global _sk_model, _sk_model_loaded
             candidate_model_paths = [
                 os.path.join(os.path.dirname(__file__), '..', 'models', 'intent_tfidf_logreg.joblib'),
                 os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'intent_tfidf_logreg.joblib'),
@@ -154,6 +136,24 @@ def ensure_initialized(sync=True):
     except Exception:
         pass
     _initialized = True
+
+def ensure_initialized(sync=True):
+    """Ensure background initialization runs. If sync=False, start init asynchronously and return False.
+
+    If sync=True, perform initialization inline (useful for local runs).
+    """
+    global _initialized, _init_started, _init_thread
+    if _initialized:
+        return True
+    if not sync:
+        if not _init_started:
+            import threading
+            _init_started = True
+            _init_thread = threading.Thread(target=_do_init, daemon=True)
+            _init_thread.start()
+        return False
+    # synchronous init (blocking)
+    _do_init()
     return True
 
 def extract_slots_by_rule(text: str):
