@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "data": [
+    {"id": 1, "description": "Contoh Wedding 1", "image_url_full": "https://ai-sepasangwp.vercel.app/event.png"},
+    {"id": 2, "description": "Contoh Wedding 2", "image_url_full": "https://ai-sepasangwp.vercel.app/event.png"}
+  ]
+}

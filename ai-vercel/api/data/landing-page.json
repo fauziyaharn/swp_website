@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "has_data": true,
+  "data": {
+    "image_url_full": "https://ai-sepasangwp.vercel.app/event.png",
+    "title": "SepasangWP - Landing",
+    "description": "Contoh landing page data dari backend"
+  }
+}

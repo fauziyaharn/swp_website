@@ -1,0 +1,67 @@
+{
+  "mua": [
+    {"name": "Make Up By Yuliana Dewi", "image": "https://via.placeholder.com/120?text=MUA1", "url": "https://instagram.com/makeup_yuliana", "contact": "+628112345678"},
+    "Giskavina",
+    "Kemalia Kentina",
+    "Makeup By Gistony",
+    "DK Attire",
+    "Waibi Gownart",
+    "Ezzasyahreza",
+    "Mustika SZ",
+    "Wildan Majid",
+    "Uju Juanas",
+    "Efendi",
+    "Kiki Kusni",
+    "Sentauri Senta",
+    "Armeita",
+    "Gina Rizka",
+    "Raden Mustika",
+    "Dhanika",
+    "Makeup By Willy",
+    "Sarah Rimadhina",
+    "Iren",
+    "Tika Kusnaedi",
+    "Vera Verial",
+    "Ayung Berinda Wedding Gallery",
+    "Ernade",
+    "Naire",
+    "Laviena Wedding Gallery"
+  ],
+  "decoration": [
+    {"name": "GP Florist", "image": "https://via.placeholder.com/120?text=Deco1", "url": "https://instagram.com/gpflorist", "contact": "+628199999000"},
+    "Sadiqa Decoration",
+    "Aksen Dekorasi",
+    "Hipro Decoration",
+    "Saras Decoration",
+    "Menata Design",
+    "Nayla Decoration"
+  ],
+  "documentation": [
+    {"name": "Alura Photography", "image": "https://via.placeholder.com/120?text=Photo1", "url": "https://instagram.com/alura.photography", "contact": "+628122222333"},
+    "The Couple Studio",
+    "Dearpict",
+    "Nesnumoto",
+    "Jalan Lembar Kita",
+    "Arterita Photo"
+  ],
+  "entertainment": [
+    {"name": "Bio Music Pro", "image": "https://via.placeholder.com/120?text=Music1", "url": "https://instagram.com/biomusicpro", "contact": "+628133333444"},
+    "Amazingdays",
+    "DMT Music",
+    "Treegie Music",
+    "Romansa Music",
+    "Mars Music"
+  ],
+  "catering": [
+    {"name": "Sedap Catering", "image": "https://via.placeholder.com/120?text=Catering1", "url": "https://instagram.com/sedap.catering", "contact": "+628144444555"},
+    "Asparagus Catering",
+    "Kartika Catering",
+    "Samudra Catering",
+    "Dillas Catering"
+  ],
+  "wo": [
+    {"name": "Sepasang Wedding Planner", "image": "https://via.placeholder.com/120?text=WO1", "url": "https://instagram.com/sepasang.wp", "contact": "+628155555666"},
+    {"name": "SepasangWP Team", "image": "https://via.placeholder.com/120?text=WO2", "url": "https://instagram.com/sepasang.wp.team", "contact": "+628166666777"},
+    {"name": "SWP Organizer", "image": "https://via.placeholder.com/120?text=WO3", "url": "https://instagram.com/swp.organizer", "contact": "+628177777888"}
+  ]
+}
