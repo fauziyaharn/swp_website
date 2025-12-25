@@ -12,7 +12,6 @@ import random
 app = Flask(__name__)
 CORS(app)
 
-from api.ai_stub import ensure_initialized, predict as ai_predict
 ts_app = None
 _model_lock = threading.Lock()
 _model_downloading = False
@@ -58,7 +57,13 @@ def process_endpoint():
         r.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         return r, 400
 
-    # initialize lightweight ai stub
+    # initialize lightweight ai stub (import lazily so missing deps don't crash module import)
+    try:
+        from api.ai_stub import ensure_initialized, predict as ai_predict
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return jsonify({'error': 'ai_import_failed', 'message': str(e), 'trace': tb}), 500
     initialized = ensure_initialized(sync=True)
     if not initialized:
         return jsonify({'error': 'initializing', 'message': 'AI is still initializing, try again shortly'}), 503
